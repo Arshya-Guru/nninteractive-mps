@@ -1,0 +1,13 @@
+# Python venv
+.venv/
+
+# Downloaded model weights (hundreds of MB — not committed)
+server/.nninteractive_weights/
+**/.nninteractive_weights/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
