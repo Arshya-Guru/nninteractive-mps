@@ -12,6 +12,14 @@ Patch 1 — scalar index in autozoom border check (inference_session._predict)
     MPS index_select rejects it ("Dimension specified as -1 but tensor has no dimensions").
     Making the index 1-D (`[idx]`) is mathematically identical for the subsequent
     `sum` / `!=` reductions and works on every backend.
+
+Patch 2 — float64 interpolation in autozoom (inference_session._predict)
+    Two spots in the zoom code upsample a prediction with `interpolate(x.to(float), ...)`.
+    Python's `float` maps to torch float64, which MPS does not support ("Cannot convert a
+    MPS Tensor to float64 dtype"). Both cases hold integer class labels and use
+    nearest/trilinear interpolation, so float32 is exact enough:
+      - the border-change check (`mode='nearest'`)
+      - the final resize back to patch size (`mode='trilinear'`)
 """
 
 import importlib.util
@@ -24,6 +32,14 @@ PATCHES = {
         (
             "torch.tensor(idx, device=self.device)",
             "torch.tensor([idx], device=self.device)",
+        ),
+        (
+            "interpolate(previous_zoom_prediction[None, None].to(float), pred.shape, mode='nearest')",
+            "interpolate(previous_zoom_prediction[None, None].to(torch.float32), pred.shape, mode='nearest')",
+        ),
+        (
+            "interpolate(pred[None, None].to(float), scaled_patch_size, mode='trilinear')",
+            "interpolate(pred[None, None].to(torch.float32), scaled_patch_size, mode='trilinear')",
         ),
     ],
 }
