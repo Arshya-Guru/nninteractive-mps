@@ -1,4 +1,6 @@
-# Python venv
+# pixi environment (solved + installed locally)
+.pixi/
+# Python venv (legacy)
 .venv/
 
 # Downloaded model weights (hundreds of MB — not committed)

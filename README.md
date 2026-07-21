@@ -7,6 +7,14 @@ The official server is CUDA-only. This is a thin port that runs the same model o
 Silicon via PyTorch's MPS backend. The HTTP API, the port (`1527`), and the Slicer
 extension are all unchanged.
 
+> **Now managed by [pixi](https://pixi.sh).** Earlier versions used hand-rolled
+> `setup.sh` / `start.sh` scripts that assumed you'd already installed the right Python
+> and pip-installed everything by hand. Those are gone. pixi now owns the whole stack —
+> the exact Python interpreter, PyTorch, nnInteractive, and every other dependency —
+> pinned in `pixi.toml` and locked in `pixi.lock`. There is nothing to `pip install` and
+> no Python version to match: one command solves, installs, patches, and launches. If you
+> cloned an older copy, just `git pull` and run `pixi run start`.
+
 ---
 
 ## Quick start
@@ -14,37 +22,50 @@ extension are all unchanged.
 **You need:**
 - An Apple Silicon Mac (M1/M2/M3/M4) running macOS.
 - [3D Slicer](https://download.slicer.org/) installed.
-- Python **3.10–3.13** (check with `python3 --version`). If you only have 3.14+,
-  install 3.12 first: `brew install python@3.12`.
 - [Git](https://git-scm.com/download/mac) (macOS prompts to install it the first
   time you run `git`).
+- **pixi** — the one tool this project needs. It manages Python and every dependency for
+  you, so you do **not** install Python, PyTorch, or anything else by hand. See step 1.
 
-**Open Terminal** (⌘+Space → "Terminal"), then run:
+**Step 1 — install pixi (once per machine).** If you've never used pixi, open Terminal
+(⌘+Space → "Terminal") and run:
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash
+```
+
+Then **close and re-open Terminal** so `pixi` is on your `PATH`. Confirm it worked:
+
+```bash
+pixi --version
+```
+
+If that prints a version number, you're set. (Already have pixi? Skip to step 2.)
+
+**Step 2 — clone and launch.** In Terminal:
 
 ```bash
 git clone https://github.com/Arshya-Guru/nninteractive-mps.git
 cd nninteractive-mps
-chmod +x setup.sh start.sh "Start nnInteractive MPS.command"
-./setup.sh
+pixi run start
 ```
 
-`setup.sh` creates a `.venv` and installs the pinned stack (PyTorch 2.8 +
-nnInteractive 1.0.1). It takes a few minutes and prints whether MPS is available at
-the end.
+That single command does everything: on the first run it solves and installs the pinned
+stack (Python 3.12 + PyTorch 2.8 + nnInteractive 1.0.1) into a local `.pixi/`
+environment, applies the MPS source patches, and starts the server. It takes a few
+minutes the first time; later runs skip straight to launch.
 
-## Start the server
-
-Either **double-click `Start nnInteractive MPS.command`** in Finder, or from the same
-folder in Terminal:
-
-```bash
-./start.sh
-```
+Prefer clicking? Once step 1 is done, **double-click `Start nnInteractive MPS.command`**
+in Finder instead — it runs the same `pixi run start`. (If pixi isn't installed yet, the
+launcher window tells you exactly how to install it and then exits, so it can't fail
+silently.)
 
 Leave the window open while you work. When you see uvicorn listening on
-`http://127.0.0.1:1527`, the server is ready. The **first** launch downloads
+`http://127.0.0.1:1527`, the server is ready. The **first** launch also downloads
 ~hundreds of MB of model weights into `server/.nninteractive_weights/`; later
 launches skip that.
+
+> Want to confirm the Apple GPU is being used? Run `pixi run verify`.
 
 ## Connect 3D Slicer to it
 
@@ -66,19 +87,20 @@ launches skip that.
 
 | Symptom | Fix |
 |---|---|
-| `No .venv found` | Run `./setup.sh` first. |
+| `pixi: command not found` | Install pixi: `curl -fsSL https://pixi.sh/install.sh \| bash`, then re-open Terminal. |
 | Slicer can't reach the server | Check the launcher window is still open and the URL is exactly `http://localhost:1527`. |
-| Port already in use | Start with a different port (`./start.sh` calls `server_mps.py --port 1530`) and set the same port in Slicer. |
-| `MPS available: False` at end of setup | You're on an Intel Mac or an old PyTorch — the server still runs, just on CPU. |
-| Hard `"not implemented for MPS"` crash | An op is missing an MPS kernel. The launcher already sets `PYTORCH_ENABLE_MPS_FALLBACK=1` so this is rare; if it still happens, file an issue with the op name. |
+| Port already in use | Edit the `start` task's `--port` in `pixi.toml` and set the same port in Slicer. |
+| `MPS available: False` (`pixi run verify`) | You're on an Intel Mac or an old PyTorch — the server still runs, just on CPU. |
+| Hard `"not implemented for MPS"` crash | An op is missing an MPS kernel. The env already sets `PYTORCH_ENABLE_MPS_FALLBACK=1` so this is rare; if it still happens, file an issue with the op name. |
+| Want a clean reinstall | Delete the `.pixi/` folder and run `pixi run start` again. |
 
 ## Performance notes
 
 - The model runs in **float32** on MPS (the CUDA build uses fp16 autocast), so expect
   more memory use and slower per-interaction latency than an NVIDIA workstation. Still
   interactive for typical volumes; **~16 GB RAM recommended**.
-- `PYTORCH_ENABLE_MPS_FALLBACK=1` is set by `start.sh` so unsupported ops fall back to
-  CPU rather than crashing.
+- `PYTORCH_ENABLE_MPS_FALLBACK=1` is set by the pixi environment so unsupported ops fall
+  back to CPU rather than crashing.
 
 ## How it works
 
@@ -100,13 +122,13 @@ See [`NOTICE.md`](NOTICE.md) for attribution and licenses.
 
 ```
 nninteractive-mps/
-├─ Start nnInteractive MPS.command   # double-click launcher (keeps Terminal open)
-├─ setup.sh                          # one-time: create venv + install deps
-├─ start.sh                          # start the server (used by the launcher)
+├─ Start nnInteractive MPS.command   # double-click launcher (runs `pixi run start`)
+├─ pixi.toml                         # env + deps + tasks (install/patch/start in one)
+├─ pixi.lock                          # exact resolved versions (reproducible installs)
 ├─ server/
 │  ├─ server_mps.py                  # MPS-aware server (device auto-select)
 │  ├─ apply_mps_patches.py           # idempotent source patches for MPS
-│  └─ requirements.txt
+│  └─ requirements.txt               # dependency notes (source of truth: pixi.toml)
 ├─ NOTICE.md                         # attribution / licenses
 ├─ LICENSE
 └─ README.md
