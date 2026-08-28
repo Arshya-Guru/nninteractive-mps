@@ -20,8 +20,8 @@ extension are all unchanged.
 ## Quick start
 
 **You need:**
-- An Apple Silicon Mac (M1/M2/M3/M4) running macOS.
-- [3D Slicer](https://download.slicer.org/) installed.
+- An Apple Silicon Mac (M1/M2/M3/M4/M5) running macOS.
+- [3D Slicer](https://download.slicer.org/) installed. **NOTE: Doesn't work with latest version of Slicer but confirmed working at version 5.10.0**
 - [Git](https://git-scm.com/download/mac) (macOS prompts to install it the first
   time you run `git`).
 - **pixi** — the one tool this project needs. It manages Python and every dependency for
