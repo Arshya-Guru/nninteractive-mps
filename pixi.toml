@@ -1,49 +1,36 @@
-# nnInteractive Slicer server — Apple Silicon (MPS) build.
+# nnInteractive server — Apple Silicon (MPS) build.
 #
 # One command does everything:  pixi run start
-# It solves + installs the pinned stack (first run only), applies the MPS source
-# patches, and launches the server. No separate setup step.
+# It solves + installs the pinned stack (first run only) and launches the official
+# nnInteractive v2 server on the Apple GPU. No separate setup step.
 
 [workspace]
 name = "nninteractive-mps"
-version = "0.1.0"
+version = "0.2.0"
 description = "nnInteractive interactive-segmentation server on Apple Silicon (MPS)"
 channels = ["conda-forge"]
 platforms = ["osx-arm64"]
 
 [dependencies]
-# The pinned stack (torch==2.8.0, numpy==2.2.3) only has wheels for Python 3.10-3.13.
-# Pin the interpreter here so a system 3.14+ can never break the install.
 python = ">=3.12,<3.13"
 
 [pypi-dependencies]
-# Installing the upstream server package transitively pulls the exact pinned stack it
-# was built against (nninteractive==1.0.1, torch==2.8.0, fastapi, numpy, transformers,
-# xxhash, Pillow). On arm64 the torch 2.8.0 wheel ships the MPS (Metal) backend.
-nninteractive-slicer-server = "==0.3.0"
-
-# nnInteractive 1.0.1 calls the 6-arg nnUNetTrainer.build_network_architecture(), which
-# nnU-Net removed in v2.7.0. nninteractive only declares "nnunetv2>=2.6", so hold it on
-# the 2.6.x line, which still has the old signature.
-nnunetv2 = ">=2.6,<2.7"
-
-# Runtime deps the server imports but that aren't declared by the package above.
-uvicorn = ">=0.30"
-python-multipart = ">=0.0.9"
-huggingface_hub = ">=0.24"
+# The official nnInteractive v2 package ships the inference server (`nninteractive-server`)
+# that the current SlicerNNInteractive extension talks to (Remote mode). The extension only
+# accepts a v2 backend (>=2.5.1, <3), so stay on the same major version. It pulls in
+# nnU-Net, PyTorch (the arm64 macOS wheel includes the MPS backend) and everything else.
+nninteractive = ">=2.6.0,<3"
 
 [activation.env]
 # Lets PyTorch run any op that lacks an MPS kernel on the CPU instead of crashing.
 PYTORCH_ENABLE_MPS_FALLBACK = "1"
 
 [tasks]
-# Apply the idempotent MPS source patches to the installed nnInteractive package.
-patch = "python server/apply_mps_patches.py"
-
-# Start the server. Depends on `patch`, so the patches are always applied first.
-# First launch downloads the model weights (~hundreds of MB) into
-# server/.nninteractive_weights; subsequent launches are fast.
-start = { cmd = "python server_mps.py --host 127.0.0.1 --port 1527", cwd = "server", depends-on = ["patch"] }
+# Start the server on http://localhost:1527. Extra arguments are passed through to
+# `nninteractive-server`, e.g. `pixi run start --port 1530`.
+# The first launch downloads the model weights (~400 MB) into ~/.nninteractive;
+# subsequent launches are fast.
+start = "python server/server_mps.py"
 
 # Optional: confirm the Apple GPU (MPS) backend is available.
 verify = """
