@@ -14,8 +14,9 @@ export PATH="$HOME/.pixi/bin:$PATH"
 
 echo "================================================================"
 echo "  nnInteractive (MPS) server"
-echo "  Keep this window open. In 3D Slicer, set the extension's"
-echo "  Server URL to:   http://localhost:1527"
+echo "  Keep this window open. In 3D Slicer's nnInteractive module,"
+echo "  choose Remote mode and set the server URL to:"
+echo "      http://localhost:1527"
 echo "================================================================"
 echo ""
 

@@ -5,6 +5,7 @@
 
 # Downloaded model weights (hundreds of MB — not committed)
 server/.nninteractive_weights/
+# (nnInteractive v2 stores weights in ~/.nninteractive instead)
 **/.nninteractive_weights/
 
 # Python caches
